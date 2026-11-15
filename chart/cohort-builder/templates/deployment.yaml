@@ -1,0 +1,109 @@
+# App + oauth-proxy sidecar: browsers hit the proxy (TLS :8443) first; the
+# cohort-builder API (:8080) is only reachable through it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cohort-builder.name" . }}
+  labels:
+    app: {{ include "cohort-builder.name" . }}
+spec:
+  replicas: {{ .Values.server.replicas }}
+  strategy:
+    type: Recreate   # SQLite on RWO PVC: only one pod may mount it at a time
+  selector:
+    matchLabels:
+      app: {{ include "cohort-builder.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "cohort-builder.name" . }}
+    spec:
+      serviceAccountName: {{ include "cohort-builder.name" . }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        args:
+        - --addr=0.0.0.0:8080
+        - --db={{ .Values.server.dbPath }}
+        readinessProbe:
+          httpGet:
+            path: /api/versions
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - {mountPath: /app/data, name: data}
+        {{- if .Values.llm.existingSecret }}
+        env:
+        - {name: OPENAI_BASE_URL,   valueFrom: {secretKeyRef: {name: {{ .Values.llm.existingSecret }}, key: OPENAI_BASE_URL, optional: true}}}
+        - {name: OPENAI_API_KEY,    valueFrom: {secretKeyRef: {name: {{ .Values.llm.existingSecret }}, key: OPENAI_API_KEY, optional: true}}}
+        - {name: OPENAI_MODEL_NAME, valueFrom: {secretKeyRef: {name: {{ .Values.llm.existingSecret }}, key: OPENAI_MODEL_NAME, optional: true}}}
+        {{- end }}
+      - name: oauth-proxy
+        # Digest pinned to the working copy in rhoai-version-tracker
+        image: {{ .Values.oauth.image }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+          name: public
+          protocol: TCP
+        # The ServiceAccount acts as the OAuth client: --openshift-service-account
+        # derives client-id (system:serviceaccount:<ns>:<sa>) and uses the SA's
+        # mounted token as the client secret. Redirect URI comes from the SA's
+        # oauth-redirectreference.primary annotation (follows the Route host).
+        args:
+        - --https-address=:8443
+        - --provider=openshift
+        - --openshift-service-account={{ include "cohort-builder.name" . }}
+        - --upstream=http://localhost:8080
+        - --tls-cert=/etc/tls/private/tls.crt
+        - --tls-key=/etc/tls/private/tls.key
+        - --cookie-secret-file=/etc/oauth-proxy/cookie-secret
+        {{- if eq .Values.oauth.accessMode "restricted" }}
+        - --openshift-delegate-urls={"/":{"resource":"pods","namespace":"{{ .Release.Namespace }}","verb":"get"}}
+        {{- end }}
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - {mountPath: /etc/tls/private, name: proxy-tls, readOnly: true}
+        - {mountPath: /etc/oauth-proxy, name: oauth-cookie, readOnly: true}
+      volumes:
+      - name: data
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "cohort-builder.name" . }}-data
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - {name: proxy-tls, secret: {secretName: {{ include "cohort-builder.name" . }}-tls}}
+      - name: oauth-cookie
+        secret:
+          secretName: {{ .Values.oauth.existingCookieSecret | default (printf "%s-cookie" (include "cohort-builder.name" .)) }}

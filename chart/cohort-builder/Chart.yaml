@@ -1,0 +1,11 @@
+apiVersion: v2
+name: cohort-builder
+description: >-
+  GPUaaS quota planning with Kueue + RHOAI — org-chart canvas that emits
+  version-accurate Kueue YAML (typed snapshots of kueue-operator release
+  branches), with diagram import (glm), read-only cluster import and SQLite
+  persistence. Served behind an OpenShift oauth-proxy sidecar.
+type: application
+version: 0.1.1
+appVersion: "0.1.1"
+icon: https://avatars.githubusercontent.com/u/137704455?s=200

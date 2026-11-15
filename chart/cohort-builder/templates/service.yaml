@@ -1,0 +1,18 @@
+# Single exposed port: the oauth-proxy. The app's 8080 stays cluster-internal
+# (pod-local upstream only). The serving-cert annotation makes the service-ca
+# operator create the TLS secret the proxy mounts for :8443.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cohort-builder.name" . }}
+  labels:
+    app: {{ include "cohort-builder.name" . }}
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: {{ include "cohort-builder.name" . }}-tls
+spec:
+  ports:
+  - name: proxy
+    port: 443
+    targetPort: 8443
+  selector:
+    app: {{ include "cohort-builder.name" . }}

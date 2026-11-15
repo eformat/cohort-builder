@@ -1,0 +1,16 @@
+# reencrypt: router terminates edge TLS, then re-encrypts to the oauth-proxy's
+# service-ca-signed certificate on :8443. No host — auto-assigned to
+# <name>-<namespace>.apps.<cluster>, and the SA's redirect reference follows it.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "cohort-builder.name" . }}
+  labels:
+    app: {{ include "cohort-builder.name" . }}
+spec:
+  to:
+    kind: Service
+    name: {{ include "cohort-builder.name" . }}
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect

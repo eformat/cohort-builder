@@ -1,0 +1,22 @@
+# build artifacts
+bin/
+web/dist/
+web/node_modules/
+# embedded UI is a build artifact; keep the placeholder source
+internal/server/static/*
+!internal/server/static/index.html
+*.db
+*.db-wal
+*.db-shm
+
+# local env (secrets never in git)
+.env
+.env.*
+!.env.example
+
+# playwright artifacts
+.playwright-cli/
+
+# go (root-anchored: the built binary, not e.g. chart/cohort-builder/)
+/cohort-builder
+*.test

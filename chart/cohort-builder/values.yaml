@@ -1,0 +1,63 @@
+# Default values for cohort-builder.
+# Deploy: helm upgrade --install cohort-builder chart/cohort-builder -n user-mhepburn
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: quay.io/eformat/cohort-builder
+  tag: latest
+  pullPolicy: Always
+
+# ---- server -----------------------------------------------------------------
+server:
+  # Go binary flags. The UI + API listen on 8080 (cluster-internal only;
+  # browsers hit the oauth-proxy on 8443).
+  addr: "0.0.0.0:8080"
+  # SQLite lives here (PVC). WAL mode; single-writer is fine for one replica.
+  dbPath: /app/data/cohort.db
+  replicas: 1
+
+persistence:
+  enabled: true
+  # RWX not required — single replica, RWO is enough.
+  storageClass: ""
+  size: 1Gi
+
+# ---- LLM diagram import (glm-5.3-flash via MaaS) ----------------------------
+# Secrets are NEVER passed on the helm command line: create them out-of-band
+# with file refs, e.g.
+#   kubectl create secret generic cohort-builder-llm \
+#     --from-env-file=.env -n <ns>
+# (.env: OPENAI_BASE_URL, OPENAI_API_KEY, OPENAI_MODEL_NAME)
+llm:
+  # Name of an existing Secret holding OPENAI_* keys. Empty = no LLM env
+  # (diagram import responds 503 until you create and reference one).
+  existingSecret: ""
+  # Fallback for quick local testing only (renders a Secret from values):
+  # point at your OpenAI-compatible endpoint (e.g. a MaaS v1 base URL).
+  baseUrl: ""
+  model: ""
+  apiKey: ""
+
+# ---- oauth-proxy (OpenShift SSO gate) --------------------------------------
+oauth:
+  # registry.redhat.io oauth-proxy, digest-pinned like rhoai-version-tracker
+  image: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9@sha256:603f31cbe3035d001a57f371fea58acd597143893f6409ea5adb9ce447c04875
+  # Name of an existing Secret with key `cookie-secret` (base64, 32 bytes).
+  # Create once and keep stable so logins survive redeploys:
+  #   openssl rand -base64 32 > /tmp/cb-cookie
+  #   kubectl create secret generic cohort-builder-cookie \
+  #     --from-file=cookie-secret=/tmp/cb-cookie -n <ns>
+  existingCookieSecret: ""
+  # restricted — user must be able to get pods in the namespace (owner + admins);
+  #             adds the system:auth-delegator ClusterRoleBinding
+  # any       — any authenticated cluster user
+  accessMode: restricted
+
+# ---- read-only cluster import (live Kueue resources) ------------------------
+# When running in-cluster the app uses its ServiceAccount. This grants the SA
+# cluster-scoped READ access to the Kueue resources so "Import cluster" shows
+# the live state of this cluster. Read-only by construction (GET-only client).
+clusterImport:
+  enabled: true

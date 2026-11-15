@@ -1,0 +1,157 @@
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: ai-inc
+spec:
+  fairSharing:
+    weight: "1"
+  resourceGroups:
+  - coveredResources:
+    - nvidia.com/gpu
+    flavors:
+    - name: default-flavor
+      resources:
+      - lendingLimit: "500"
+        name: nvidia.com/gpu
+        nominalQuota: "500"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: ai-innovators
+spec:
+  fairSharing:
+    weight: "3"
+  parentName: ai-inc
+  resourceGroups:
+  - coveredResources:
+    - nvidia.com/gpu
+    flavors:
+    - name: default-flavor
+      resources:
+      - name: nvidia.com/gpu
+        nominalQuota: "300"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Cohort
+metadata:
+  name: next-generation
+spec:
+  fairSharing:
+    weight: "1"
+  parentName: ai-inc
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: data-wizards
+spec:
+  cohortName: ai-innovators
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: data-wizards-lab
+  preemption:
+    reclaimWithinCohort: Any
+    withinClusterQueue: LowerPriority
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+  - coveredResources:
+    - nvidia.com/gpu
+    flavors:
+    - name: default-flavor
+      resources:
+      - name: nvidia.com/gpu
+        nominalQuota: "0"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: default
+  namespace: data-wizards-lab
+spec:
+  clusterQueue: data-wizards
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: singularity-squad
+spec:
+  cohortName: ai-innovators
+  flavorFungibility:
+    whenCanBorrow: MayStopSearch
+    whenCanPreempt: TryNextFlavor
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: singularity-lab
+  preemption:
+    borrowWithinCohort:
+      policy: Never
+    reclaimWithinCohort: Any
+    withinClusterQueue: Never
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+  - coveredResources:
+    - nvidia.com/gpu
+    flavors:
+    - name: default-flavor
+      resources:
+      - name: nvidia.com/gpu
+        nominalQuota: "60"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: default
+  namespace: singularity-lab
+spec:
+  clusterQueue: singularity-squad
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: back-propagators
+spec:
+  cohortName: next-generation
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: backprop-lab
+  preemption:
+    reclaimWithinCohort: Any
+    withinClusterQueue: LowerPriority
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+  - coveredResources:
+    - nvidia.com/gpu
+    flavors:
+    - name: default-flavor
+      resources:
+      - name: nvidia.com/gpu
+        nominalQuota: "0"
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: default
+  namespace: backprop-lab
+spec:
+  clusterQueue: back-propagators
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+spec:
+  nodeLabels:
+    nvidia.com/gpu.product: H200
+  nodeTaints:
+  - effect: NoSchedule
+    key: nvidia.com/gpu
+    value: present
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+description: training runs
+kind: WorkloadPriorityClass
+metadata:
+  name: train-high
+value: 1000

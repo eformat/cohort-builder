@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cohort-builder — GPUaaS quota planning with Kueue</title>
+    <script>
+      // theme boot: apply the persisted choice before any CSS/JS loads
+      // (prevents a light flash for dark users; kept tiny and dependency-free)
+      try {
+        var t = localStorage.getItem("cohort-theme");
+        var dark = t === "dark" || ((!t || t === "system") && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ee0000'/%3E%3Ccircle cx='16' cy='9' r='4' fill='white'/%3E%3Ccircle cx='8' cy='23' r='4' fill='white'/%3E%3Ccircle cx='24' cy='23' r='4' fill='white'/%3E%3Cpath d='M16 13v4M16 17L9 20M16 17l7 3' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@500;700&family=Red+Hat+Text:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-B6fGMOdF.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-9AVQN7Kn.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

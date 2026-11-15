@@ -1,0 +1,38 @@
+{{- if .Values.clusterImport.enabled }}
+# Read-only access to live Kueue resources so "Import cluster" shows the real
+# state of this cluster when running in-cluster. GET-only client by
+# construction (the app has no cluster write paths).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cohort-builder.name" . }}-kueue-reader
+  labels:
+    app: {{ include "cohort-builder.name" . }}
+rules:
+- apiGroups: ["kueue.x-k8s.io"]
+  resources:
+  - cohorts
+  - clusterqueues
+  - localqueues
+  - resourceflavors
+  - workloadpriorityclasses
+  verbs: ["get", "list"]
+- apiGroups: ["operators.coreos.com"]
+  resources: ["clusterserviceversions"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cohort-builder.name" . }}-kueue-reader
+  labels:
+    app: {{ include "cohort-builder.name" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cohort-builder.name" . }}-kueue-reader
+subjects:
+- kind: ServiceAccount
+  name: {{ include "cohort-builder.name" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
